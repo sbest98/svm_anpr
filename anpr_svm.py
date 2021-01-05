@@ -6,13 +6,13 @@ import argparse
 import imutils
 import cv2
 import random
+from joblib import dump
 from natsort import natsorted, ns
 from skimage import io
 from sklearn import svm, metrics
 from sklearn.model_selection import RepeatedKFold
 import matplotlib.pyplot as plt
-# Import pre-processing class
-# from anpr_pre_processing import LocateAndDivideNumberPlate
+
 
 # Import and process training and test data (and labels for training)
 def import_data(args):
@@ -74,7 +74,8 @@ def build_SVM(train_data, train_labels):
     svc = svm.SVC(kernel='linear', C=1).fit(train_data, train_labels) # Default C and gamma
     return svc
 
-def main():
+# K fold cross validation
+def k_fold_main():
     # Image data folder
     ap = argparse.ArgumentParser()
     ap.add_argument("-i", "--input", required=True)
@@ -141,4 +142,31 @@ def main():
     print("Average training accuracy: " + str(mean_training_accuracy/(k*iter)) + "%")
     print("Average test accuracy: " + str(mean_test_accuracy/(k*iter)) + "%")
 
-main() # Start ANPR
+# Export pre-trained SVM classifer
+def extract_svm_main():
+    # Image data folder e.g. './images/'
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-i", "--input", required=True)
+    args = vars(ap.parse_args())
+
+    print("Importing training data...")
+    (X_train, y_train) = import_k_fold(args)
+    X_train = np.reshape(X_train, (len(X_train), 35*60))
+
+    print("Building & training SVM classifier...")
+    svc = build_SVM(X_train, y_train);
+
+    print("\t\t---------Validating training data---------")
+    pred = svc.predict(X_train)
+    training_accuracy = 0
+    for idx, p in enumerate(pred):
+        if p == y_train[idx]:
+            training_accuracy += 1
+    training_accuracy /= len(pred)
+    training_accuracy *= 100
+    print("Training Accuracy: " + str(training_accuracy) + "%")
+
+    print("Exporting model to ANPR_SVM_vX.joblib")
+    dump(svc, './trained_models/ANPR_SVM_vX.joblib')
+
+extract_svm_main() # Start ANPR

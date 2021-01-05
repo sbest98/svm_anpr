@@ -9,6 +9,10 @@ from matplotlib import pyplot as plt
 from natsort import natsorted, ns
 from skimage.segmentation import clear_border
 
+# Pre-processing mode types
+GENERATE_DATASET = 0
+FIND_SVM_CHARACTERS = 1
+
 """
 LocateAndDivideNumberPlate: Class that locates and sub divides the
                             characters from the vehicle number plate and
@@ -27,7 +31,7 @@ class LocateAndDivideNumberPlate:
             if waitKey:
                 cv2.waitKey(0)
 
-    def find_and_divide(self, image_path):
+    def find_and_divide(self, image_path, pp_mode):
         image = cv2.imread(self.path_to_images + image_path)
         image = imutils.resize(image, width=600)
         image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -35,15 +39,24 @@ class LocateAndDivideNumberPlate:
         contour_list_v1 = self.locate_number_plate(image_gray, 12)
         contour_list_v2 = self.locate_number_plate_v2(image_gray, 12)
 
-        characters_segmented = self.locate_number_plate_characters(contour_list_v1 + contour_list_v2)
+        characters_segmented, character_list, character_positions = self.locate_number_plate_characters(contour_list_v1
+                                                                                                        + contour_list_v2,
+                                                                                                        False,
+                                                                                                        pp_mode)
 
         if not characters_segmented:
             # Try clearing border pixels on contour
-            characters_segmented = self.locate_number_plate_characters(contour_list_v1 + contour_list_v2, True)
+            characters_segmented, character_list, character_positions = self.locate_number_plate_characters(contour_list_v1
+                                                                                        + contour_list_v2,
+                                                                                        True,
+                                                                                        pp_mode)
 
         if not characters_segmented:
             # Failure!
             print("Unable to locate or segment number plate characters!")
+
+        if pp_mode == FIND_SVM_CHARACTERS:
+            return characters_segmented, character_list, character_positions
 
     def locate_number_plate_v2(self, image, num_contours=5):
         cv2.destroyAllWindows()
@@ -172,7 +185,7 @@ class LocateAndDivideNumberPlate:
                 cv2.waitKey(0)
         return contour_list
 
-    def locate_number_plate_characters(self, contour_list, clear_border_pixels=False, num_contours=15):
+    def locate_number_plate_characters(self, contour_list, clear_border_pixels=False, pp_mode=0, num_contours=15):
         self.char_count = 0
         print("Locating characters...")
         cv2.destroyAllWindows()
@@ -183,7 +196,6 @@ class LocateAndDivideNumberPlate:
             self.show_image("Blackhat", blackhat)
 
             # Binarise image
-            # binarised = cv2.adaptiveThreshold(blackhat, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, 10)
             binarised = cv2.threshold(blackhat, 0, 255,
                 cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
             self.show_image("Binarised Image", binarised)
@@ -203,6 +215,7 @@ class LocateAndDivideNumberPlate:
             contours = sorted(contours, key=cv2.contourArea, reverse=True)[:num_contours]
 
             char_images = []
+            char_positions = [] # [x,y,w,h]
             for c in contours:
                 (x, y, w, h) = cv2.boundingRect(c)
                 ratio = float(h/w)
@@ -210,38 +223,46 @@ class LocateAndDivideNumberPlate:
                 if (ratio >= 1.2 and ratio <= 2.3) or (ratio >= 3.7 and ratio <= 6.0):
                     self.char_count += 1 # Character found
                     self.global_char_count += 1 # Character found
-                    char_images.append(contour_image)
-                    #print(self.char_count)
-                    print(ratio)
+                    contour_image = cv2.threshold(contour_image, 0, 255,
+                                            cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+                    char_images.append(cv2.resize(contour_image, (35,60)))
+                    char_positions.append([x, y, w, h])
                     self.show_image("Plate Character", contour_image, True)
-                    # hist = cv2.calcHist([contour_image],[0],None,[256],[0,256])
-                    # plt.plot(hist)
-                    # plt.xlim([0,256])
-                    # plt.show()
 
             if self.char_count < 7:
-                print(str(self.char_count) + " characters found")
+                if pp_mode == GENERATE_DATASET:
+                    print(str(self.char_count) + " characters found")
                 self.global_char_count -= self.char_count
                 self.char_count = 0
             else:
-                print("Found all characters!")
-                for idx, image in enumerate(char_images):
-                    cv2.imwrite(self.path_to_images + 'located_characters/char_' + str(self.global_char_count - self.char_count + idx) + '.jpg', image)
-                return True
+                if pp_mode == GENERATE_DATASET:
+                    print("Found all characters!")
+                    for idx, image in enumerate(char_images):
+                        cv2.imwrite(self.path_to_images + 'located_characters/char_' + str(self.global_char_count - self.char_count + idx) + '.jpg', image)
+                    return True, [], []
+                elif pp_mode == FIND_SVM_CHARACTERS:
+                    return True, char_images, char_positions
 
-        return False # Unable to segment 7 characters from contour list
+        return False, [], [] # Unable to segment 7 characters from contour list
 
-ap = argparse.ArgumentParser()
-ap.add_argument("-i", required=True)
-ap.add_argument("-d", required=True)
-arg = vars(ap.parse_args())
+def extract_character_data_set():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-i", required=True)
+    ap.add_argument("-d", required=True)
+    arg = vars(ap.parse_args())
 
-pre_proc = LocateAndDivideNumberPlate(debug = int(arg["d"]))
-# Iterate through images and generate dataset
-car_images = natsorted(os.listdir('./images/' + arg["i"]))
-remove_folders = re.compile('^.*\.(jpg|png)$')
-car_images = [i for i in car_images if remove_folders.match(i)]
-print(car_images)
-for image in car_images:
-    print("\nLocating and dividing number plate in: " + image)
-    pre_proc.find_and_divide(arg["i"] + image)
+    pre_proc = LocateAndDivideNumberPlate(debug = int(arg["d"]))
+    # Iterate through images and generate dataset
+    car_images = natsorted(os.listdir('./images/' + arg["i"]))
+    remove_folders = re.compile('^.*\.(jpg|png)$')
+    car_images = [i for i in car_images if remove_folders.match(i)]
+    print(car_images)
+    for image in car_images:
+        print("\nLocating and dividing number plate in: " + image)
+        pre_proc.find_and_divide(arg["i"] + image, GENERATE_DATASET)
+
+def extract_svm_characters(image_name):
+    pre_proc = LocateAndDivideNumberPlate(path_to_images = './images/test_images/')
+    plate_found, image_list, position_list = pre_proc.find_and_divide(image_name,
+                                                                      FIND_SVM_CHARACTERS)
+    return plate_found, image_list, position_list
