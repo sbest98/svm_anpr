@@ -183,7 +183,9 @@ class LocateAndDivideNumberPlate:
             self.show_image("Blackhat", blackhat)
 
             # Binarise image
-            binarised = cv2.adaptiveThreshold(blackhat, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, 10)
+            # binarised = cv2.adaptiveThreshold(blackhat, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 15, 10)
+            binarised = cv2.threshold(blackhat, 0, 255,
+                cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
             self.show_image("Binarised Image", binarised)
 
             if clear_border_pixels:
@@ -205,11 +207,12 @@ class LocateAndDivideNumberPlate:
                 (x, y, w, h) = cv2.boundingRect(c)
                 ratio = float(h/w)
                 contour_image = image[y:y + h, x:x + w]
-                if (ratio >= 1.3 and ratio <= 2.3) or (ratio >= 3.7 and ratio <= 6.0):
+                if (ratio >= 1.2 and ratio <= 2.3) or (ratio >= 3.7 and ratio <= 6.0):
                     self.char_count += 1 # Character found
                     self.global_char_count += 1 # Character found
                     char_images.append(contour_image)
-                    print(self.char_count)
+                    #print(self.char_count)
+                    print(ratio)
                     self.show_image("Plate Character", contour_image, True)
                     # hist = cv2.calcHist([contour_image],[0],None,[256],[0,256])
                     # plt.plot(hist)
@@ -229,15 +232,16 @@ class LocateAndDivideNumberPlate:
         return False # Unable to segment 7 characters from contour list
 
 ap = argparse.ArgumentParser()
+ap.add_argument("-i", required=True)
 ap.add_argument("-d", required=True)
 arg = vars(ap.parse_args())
 
 pre_proc = LocateAndDivideNumberPlate(debug = int(arg["d"]))
 # Iterate through images and generate dataset
-car_images = natsorted(os.listdir('./images/uk'))
-remove_folders = re.compile('^.*\.(jpg)$')
+car_images = natsorted(os.listdir('./images/' + arg["i"]))
+remove_folders = re.compile('^.*\.(jpg|png)$')
 car_images = [i for i in car_images if remove_folders.match(i)]
 print(car_images)
 for image in car_images:
     print("\nLocating and dividing number plate in: " + image)
-    pre_proc.find_and_divide('./uk/' + image)
+    pre_proc.find_and_divide(arg["i"] + image)
