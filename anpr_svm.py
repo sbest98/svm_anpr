@@ -75,12 +75,7 @@ def build_SVM(train_data, train_labels):
     return svc
 
 # K fold cross validation
-def k_fold_main():
-    # Image data folder
-    ap = argparse.ArgumentParser()
-    ap.add_argument("-i", "--input", required=True)
-    args = vars(ap.parse_args())
-
+def k_fold_main(args):
     print("Importing training and test data...")
     (characters, labels) = import_k_fold(args)
     flatten_chars = np.reshape(characters, (len(characters), 35*60))
@@ -143,12 +138,7 @@ def k_fold_main():
     print("Average test accuracy: " + str(mean_test_accuracy/(k*iter)) + "%")
 
 # Export pre-trained SVM classifer
-def extract_svm_main():
-    # Image data folder e.g. './images/'
-    ap = argparse.ArgumentParser()
-    ap.add_argument("-i", "--input", required=True)
-    args = vars(ap.parse_args())
-
+def extract_svm_main(args):
     print("Importing training data...")
     (X_train, y_train) = import_k_fold(args)
     X_train = np.reshape(X_train, (len(X_train), 35*60))
@@ -169,4 +159,12 @@ def extract_svm_main():
     print("Exporting model to ANPR_SVM_vX.joblib")
     dump(svc, './trained_models/ANPR_SVM_vX.joblib')
 
-extract_svm_main() # Start ANPR
+# Image data folder
+ap = argparse.ArgumentParser()
+ap.add_argument("-m", "--mode", required=True)
+ap.add_argument("-i", "--input", required=True)
+args = vars(ap.parse_args())
+if args['mode'] == 0:
+    extract_svm_main(args) # Start ANPR
+elif args['mode'] == 1:
+    k_fold_main(args) # K-fold validation
