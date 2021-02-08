@@ -36,7 +36,7 @@ def import_data(args):
         # Get training labels and images
         for label in char_images:
             train_labels.append(label[0])
-            train_list.append(cv2.resize(cv2.imread(char_dir + label, 0), (35,60)))
+            train_list.append(cv2.resize(cv2.imread(char_dir + label, 0), (15,20)))
 
     for im_folder in test_files:
         char_dir = test_dir + im_folder + '/'
@@ -44,7 +44,7 @@ def import_data(args):
         # Get training labels and images
         for label in char_images:
             test_labels.append(label[0])
-            test_list.append(cv2.resize(cv2.imread(char_dir + label, 0), (35,60)))
+            test_list.append(cv2.resize(cv2.imread(char_dir + label, 0), (15,20)))
 
     return (train_list, train_labels, test_list, test_labels)
 
@@ -64,28 +64,26 @@ def import_k_fold(args):
         # Get training labels and images
         for label in char_images:
             X_labels.append(label[0])
-            X_list.append(cv2.resize(cv2.imread(char_dir + label, 0), (35,60)))
+            X_list.append(cv2.resize(cv2.imread(char_dir + label, 0), (15,20)))
 
     return (X_list, np.array(X_labels))
 
 # Create Support Vector Machine classifier
 def build_SVM(train_data, train_labels):
     # Instantiate class and train on data
-    svc = svm.SVC(kernel='linear', C=1).fit(train_data, train_labels) # Default C and gamma
+    svc = svm.SVC(kernel='linear', gamma='scale', C=15).fit(train_data, train_labels) # Default C and gamma
     return svc
 
 # K fold cross validation
 def k_fold_main(args):
     print("Importing training and test data...")
     (characters, labels) = import_k_fold(args)
-    flatten_chars = np.reshape(characters, (len(characters), 35*60))
-    print(flatten_chars.dtype)
-    print(labels.dtype)
+    flatten_chars = np.reshape(characters, (len(characters), 15*20))
 
     mean_training_accuracy=0
     mean_test_accuracy=0
 
-    k = 15
+    k = 5
     iter = 10
     kf = RepeatedKFold(n_splits=k, n_repeats=iter, random_state=random.randint(1,2652124))
     for i, (train, test) in enumerate(kf.split(flatten_chars)):
@@ -136,12 +134,16 @@ def k_fold_main(args):
     print("\n\n--------------K fold results---------------")
     print("Average training accuracy: " + str(mean_training_accuracy/(k*iter)) + "%")
     print("Average test accuracy: " + str(mean_test_accuracy/(k*iter)) + "%")
+    disp = metrics.plot_confusion_matrix(svc, X_test, y_test)
+    disp.figure_.suptitle("Confusion Matrix")
+    print(f"Confusion matrix:\n{disp.confusion_matrix}")
+    plt.show()
 
 # Export pre-trained SVM classifer
 def extract_svm_main(args):
     print("Importing training data...")
     (X_train, y_train) = import_k_fold(args)
-    X_train = np.reshape(X_train, (len(X_train), 35*60))
+    X_train = np.reshape(X_train, (len(X_train), 15*20))
 
     print("Building & training SVM classifier...")
     svc = build_SVM(X_train, y_train);
@@ -164,7 +166,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("-m", "--mode", required=True)
 ap.add_argument("-i", "--input", required=True)
 args = vars(ap.parse_args())
-if args['mode'] == 0:
+if args['mode'] == '0':
     extract_svm_main(args) # Start ANPR
-elif args['mode'] == 1:
+elif args['mode'] == '1':
     k_fold_main(args) # K-fold validation

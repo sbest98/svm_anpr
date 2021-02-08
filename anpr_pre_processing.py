@@ -218,9 +218,10 @@ class LocateAndDivideNumberPlate:
             char_positions = [] # [x,y,w,h]
             for c in contours:
                 (x, y, w, h) = cv2.boundingRect(c)
+                area = w*h
                 ratio = float(h/w)
                 contour_image = image[y:y + h, x:x + w]
-                if (ratio >= 1.2 and ratio <= 2.3) or (ratio >= 3.7 and ratio <= 6.0):
+                if ((ratio >= 1.2 and ratio <= 2.3) or (ratio >= 3.7 and ratio <= 6.0)) and (area > 30):
                     self.char_count += 1 # Character found
                     self.global_char_count += 1 # Character found
                     contour_image = cv2.threshold(contour_image, 0, 255,
@@ -261,8 +262,8 @@ def extract_character_data_set():
         print("\nLocating and dividing number plate in: " + image)
         pre_proc.find_and_divide(arg["i"] + image, GENERATE_DATASET)
 
-def extract_svm_characters(image_name):
-    pre_proc = LocateAndDivideNumberPlate(path_to_images = './images/test_images/')
+def extract_svm_characters(image_name, debug):
+    pre_proc = LocateAndDivideNumberPlate(path_to_images = './images/test_images/', debug=debug)
     plate_found, image_list, position_list = pre_proc.find_and_divide(image_name,
                                                                       FIND_SVM_CHARACTERS)
     return plate_found, image_list, position_list
