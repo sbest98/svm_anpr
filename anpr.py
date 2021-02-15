@@ -32,7 +32,6 @@ def getANPR(image_list, position_list, d):
         else:
             pos.append(pos[1] - (sorted_position_list[idx-1][1] + position_list[sorted_position_list[idx-1][0]][2]) )
             pos.append(sorted_position_list[idx+1][1] - (pos[1] + position_list[pos[0]][2]) )
-    print(sorted_position_list)
 
     # Determine mean and std
     #   - Right side gaps
@@ -47,9 +46,11 @@ def getANPR(image_list, position_list, d):
     # Ideal character distance range
     upper_d_r = mean_r + (std_r)
     lower_d_r = mean_r - (std_r)
-    print("Gaps between characters:")
-    print('\tMean(u): ' + str(mean_r),'Std: ' + str(std_r))
-    print('\tu+0std: ' + str(upper_d_r),'u-std: ' + str(lower_d_r))
+    if d == True:
+        print(sorted_position_list)
+        print("Gaps between characters:")
+        print('\tMean(u): ' + str(mean_r),'Std: ' + str(std_r))
+        print('\tu+0std: ' + str(upper_d_r),'u-std: ' + str(lower_d_r))
 
     # Determine center gap of plate and noise characters
     d_char = [] # Dirty bit characters
@@ -86,9 +87,7 @@ def getANPR(image_list, position_list, d):
                     d_char.append(0)
                 else:
                     d_char.append(1)
-    print(d_char)
-
-
+    if d: print(d_char)
 
     print("Importing ANPR SVM Classifier...")
     svc = load("./trained_models/ANPR_SVM_v1.joblib")
@@ -96,10 +95,18 @@ def getANPR(image_list, position_list, d):
     image_list = np.reshape(image_list, (len(image_list), 35*60))
     plate_predictions = svc.predict(image_list)
     sorted_plate_predictions = []
-    for pos in sorted_position_list:
-        sorted_plate_predictions.append(plate_predictions[pos[0]])
+    for idx, pos in enumerate(sorted_position_list):
+        if not d_char[idx]:
+            sorted_plate_predictions.append(plate_predictions[pos[0]])
     plate_string = ''.join([str(elem) for elem in sorted_plate_predictions])
-    print("Number plate:\n" + plate_string)
+    if len(plate_string) == 7:
+        print("Number plate:\n" + plate_string)
+        return 2
+    elif len(plate_string) > 7:
+        if d: print("Debug plate value: ", plate_string)
+        return 1
+    else:
+        return 0
 
 
 def main():
@@ -113,9 +120,24 @@ def main():
                                                                     else False)
 
     if plate_found:
-        getANPR(image_list, position_list, int(arg["d"]))
+        anpr_status = getANPR(image_list, position_list, int(arg["d"]))
+        if anpr_status == 1:
+            print("Noise detected. Attempting border removal...")
+            plate_found, image_list, position_list = extract_svm_characters(arg["i"],
+                                                                            int(arg["d"])
+                                                                            if ("d" in arg)
+                                                                            else False,
+                                                                            True)
+            if plate_found:
+                anpr_status = getANPR(image_list, position_list, int(arg["d"]))
+                if not anpr_status:
+                    print("Plate not classified!")
+            else:
+                print("Plate not classified!")
+        elif anpr_status == 0:
+            print("Plate not classified!")
     else:
-        print("Plate not found!")
+        print("Plate not classified!")
 
 
 if __name__ == '__main__':

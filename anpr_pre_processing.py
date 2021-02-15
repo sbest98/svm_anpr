@@ -31,7 +31,7 @@ class LocateAndDivideNumberPlate:
             if waitKey:
                 cv2.waitKey(0)
 
-    def find_and_divide(self, image_path, pp_mode):
+    def find_and_divide(self, image_path, pp_mode, border_test = False):
         image = cv2.imread(self.path_to_images + image_path)
         image = imutils.resize(image, width=600)
         image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -39,13 +39,20 @@ class LocateAndDivideNumberPlate:
         contour_list_v1 = self.locate_number_plate(image_gray, 12)
         contour_list_v2 = self.locate_number_plate_v2(image_gray, 12)
 
-        characters_segmented, character_list, character_positions = self.locate_number_plate_characters(contour_list_v1
-                                                                                                        + contour_list_v2,
-                                                                                                        False,
-                                                                                                        pp_mode)
+        if not border_test:
+            characters_segmented, character_list, character_positions = self.locate_number_plate_characters(contour_list_v1
+                                                                                                            + contour_list_v2,
+                                                                                                            False,
+                                                                                                            pp_mode)
 
-        if not characters_segmented:
-            # Try clearing border pixels on contour
+            if not characters_segmented:
+                # Try clearing border pixels on contour
+                characters_segmented, character_list, character_positions = self.locate_number_plate_characters(contour_list_v1
+                                                                                            + contour_list_v2,
+                                                                                            True,
+                                                                                            pp_mode)
+        elif border_test:
+            # Fall back test -  clearing border pixels on contour
             characters_segmented, character_list, character_positions = self.locate_number_plate_characters(contour_list_v1
                                                                                         + contour_list_v2,
                                                                                         True,
@@ -262,8 +269,9 @@ def extract_character_data_set():
         print("\nLocating and dividing number plate in: " + image)
         pre_proc.find_and_divide(arg["i"] + image, GENERATE_DATASET)
 
-def extract_svm_characters(image_name, debug):
+def extract_svm_characters(image_name, debug, border_test=False):
     pre_proc = LocateAndDivideNumberPlate(path_to_images = './images/test_images/', debug=debug)
     plate_found, image_list, position_list = pre_proc.find_and_divide(image_name,
-                                                                      FIND_SVM_CHARACTERS)
+                                                                      FIND_SVM_CHARACTERS,
+                                                                      border_test)
     return plate_found, image_list, position_list
