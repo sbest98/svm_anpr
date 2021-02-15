@@ -16,6 +16,19 @@ This tool is built using Python 3. Please install Python before any of required 
   pip3 install <package-name>
   ```
 
+## Directory Structure
+
+```sh
+.
+├── images
+│   ├── k_characters
+│   │   ├── 0
+│   │   ├── ...
+│   │   └── Z
+│   ├── test_images
+└── trained_models
+```
+
 ## Usage
 ### ANPR Tool
 To run the ANPR tool, use the following command:

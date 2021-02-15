@@ -13,17 +13,7 @@ import matplotlib.pyplot as plt
 # Import pre-processing class
 from anpr_pre_processing import extract_svm_characters
 
-ap = argparse.ArgumentParser()
-ap.add_argument("-i", required=True)
-ap.add_argument("-d")
-arg = vars(ap.parse_args())
-plate_found, image_list, position_list = extract_svm_characters(arg["i"],
-                                                                int(arg["d"])
-                                                                if ("d" in arg)
-                                                                else False)
-
-
-if plate_found:
+def getANPR(image_list, position_list, d):
     sorted_image_list = []
     sorted_position_list = np.array(position_list)[:,0].tolist()
     num_chars = len(sorted_position_list)
@@ -45,9 +35,10 @@ if plate_found:
     # Ideal character distance range
     upper_d = mean + std
     lower_d = mean - std
-    print(sorted_position_list)
-    print('Mean(u): ' + str(mean),'Std: ' + str(std))
-    print('u+std: ' + str(upper_d),'u-std: ' + str(lower_d))
+    if d == True:
+        print(sorted_position_list)
+        print('Mean(u): ' + str(mean),'Std: ' + str(std))
+        print('u+std: ' + str(upper_d),'u-std: ' + str(lower_d))
 
     print("Importing ANPR SVM Classifier...")
     svc = load("./trained_models/ANPR_SVM_v1.joblib")
@@ -58,6 +49,24 @@ if plate_found:
     for pos in sorted_position_list:
         sorted_plate_predictions.append(plate_predictions[pos[0]])
     plate_string = ''.join([str(elem) for elem in sorted_plate_predictions])
-    print("Number plate: " + plate_string)
-else:
-    print("Plate not found!")
+    print("Number plate:\n" + plate_string)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-i", required=True)
+    ap.add_argument("-d")
+    arg = vars(ap.parse_args())
+    plate_found, image_list, position_list = extract_svm_characters(arg["i"],
+                                                                    int(arg["d"])
+                                                                    if ("d" in arg)
+                                                                    else False)
+
+    if plate_found:
+        getANPR(image_list, position_list, int(arg["d"]))
+    else:
+        print("Plate not found!")
+
+
+if __name__ == '__main__':
+    main()
