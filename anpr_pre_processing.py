@@ -2,6 +2,7 @@
 import cv2
 import os
 import re
+import sys
 import imutils
 import argparse
 import numpy as np
@@ -33,37 +34,40 @@ class LocateAndDivideNumberPlate:
 
     def find_and_divide(self, image_path, pp_mode, border_test = False):
         image = cv2.imread(self.path_to_images + image_path)
-        image = imutils.resize(image, width=600)
-        image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        if image is not None:
+            image = imutils.resize(image, width=600)
+            image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        contour_list_v1 = self.locate_number_plate(image_gray, 12)
-        contour_list_v2 = self.locate_number_plate_v2(image_gray, 12)
+            contour_list_v1 = self.locate_number_plate(image_gray, 12)
+            contour_list_v2 = self.locate_number_plate_v2(image_gray, 12)
 
-        if not border_test:
-            characters_segmented, character_list, character_positions = self.locate_number_plate_characters(contour_list_v1
-                                                                                                            + contour_list_v2,
-                                                                                                            False,
-                                                                                                            pp_mode)
+            if not border_test:
+                characters_segmented, character_list, character_positions = self.locate_number_plate_characters(contour_list_v1
+                                                                                                                + contour_list_v2,
+                                                                                                                False,
+                                                                                                                pp_mode)
 
-            if not characters_segmented:
-                # Try clearing border pixels on contour
+                if not characters_segmented:
+                    # Try clearing border pixels on contour
+                    characters_segmented, character_list, character_positions = self.locate_number_plate_characters(contour_list_v1
+                                                                                                + contour_list_v2,
+                                                                                                True,
+                                                                                                pp_mode)
+            elif border_test:
+                # Fall back test -  clearing border pixels on contour
                 characters_segmented, character_list, character_positions = self.locate_number_plate_characters(contour_list_v1
                                                                                             + contour_list_v2,
                                                                                             True,
                                                                                             pp_mode)
-        elif border_test:
-            # Fall back test -  clearing border pixels on contour
-            characters_segmented, character_list, character_positions = self.locate_number_plate_characters(contour_list_v1
-                                                                                        + contour_list_v2,
-                                                                                        True,
-                                                                                        pp_mode)
 
-        if not characters_segmented:
-            # Failure!
-            print("Unable to locate or segment number plate characters!")
+            if not characters_segmented:
+                # Failure!
+                print("Unable to locate or segment number plate characters!")
 
-        if pp_mode == FIND_SVM_CHARACTERS:
-            return characters_segmented, character_list, character_positions
+            if pp_mode == FIND_SVM_CHARACTERS:
+                return characters_segmented, character_list, character_positions
+        else:
+            sys.exit("Image does not exist in ./images/test_images/ directory")
 
     def locate_number_plate_v2(self, image, num_contours=5):
         cv2.destroyAllWindows()
