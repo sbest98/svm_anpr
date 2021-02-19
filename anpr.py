@@ -89,10 +89,10 @@ def getANPR(image_list, position_list, d):
                     d_char.append(1)
     if d: print(d_char)
 
-    print("Importing ANPR SVM Classifier...")
-    svc = load("./trained_models/ANPR_SVM_v1.joblib")
+    print("Importing ANPR SVM Classifier...\n  ./trained_models/ANPR_SVM_v2.joblib")
+    svc = load("./trained_models/ANPR_SVM_v2.joblib")
 
-    image_list = np.reshape(image_list, (len(image_list), 35*60))
+    image_list = np.reshape(image_list, (len(image_list), 20*15))
     plate_predictions = svc.predict(image_list)
     sorted_plate_predictions = []
     for idx, pos in enumerate(sorted_position_list):

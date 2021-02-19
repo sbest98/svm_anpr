@@ -237,7 +237,7 @@ class LocateAndDivideNumberPlate:
                     self.global_char_count += 1 # Character found
                     contour_image = cv2.threshold(contour_image, 0, 255,
                                             cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
-                    char_images.append(cv2.resize(contour_image, (35,60)))
+                    char_images.append(cv2.resize(contour_image, (15,20)))
                     char_positions.append([x, y, w, h])
                     self.show_image("Plate Character", contour_image, True)
 

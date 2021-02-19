@@ -1,0 +1,7 @@
+ANPR_SVM_v1
+  - sklearn 0.22.1
+  - Character size 35x60
+
+ANPR_SVM_v2
+  - sklearn 0.24.1
+  - Character size 15x20
