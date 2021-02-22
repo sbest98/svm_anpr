@@ -111,33 +111,29 @@ def getANPR(image_list, position_list, d):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("-i", required=True)
-    ap.add_argument("-d")
+    ap.add_argument("-i", required=False)
+    ap.add_argument("-d", required=False)
     arg = vars(ap.parse_args())
-    plate_found, image_list, position_list = extract_svm_characters(arg["i"],
-                                                                    int(arg["d"])
-                                                                    if ("d" in arg)
-                                                                    else False)
+    for border_removal in range(0,2):
+        if border_removal: print("Noise detected. Attempting border removal...")
+        plate_found, image_list, position_list = extract_svm_characters(arg["i"]
+                                                                        if (arg.get("i") != None)
+                                                                        else 'test_image.png',
+                                                                        int(arg["d"])
+                                                                        if (arg.get("d") != None)
+                                                                        else False,
+                                                                        border_removal)
 
-    if plate_found:
-        anpr_status = getANPR(image_list, position_list, int(arg["d"]))
-        if anpr_status == 1:
-            print("Noise detected. Attempting border removal...")
-            plate_found, image_list, position_list = extract_svm_characters(arg["i"],
-                                                                            int(arg["d"])
-                                                                            if ("d" in arg)
-                                                                            else False,
-                                                                            True)
-            if plate_found:
-                anpr_status = getANPR(image_list, position_list, int(arg["d"]))
-                if not anpr_status:
-                    print("Plate not classified!")
-            else:
+        if plate_found:
+            anpr_status = getANPR(image_list, position_list, int(arg["d"])
+                                                             if arg.get("d") is not None
+                                                             else False)
+            if (anpr_status == 0) or (anpr_status == 1 and border_removal):
                 print("Plate not classified!")
-        elif anpr_status == 0:
+            elif anpr_status == 2:
+                break
+        else:
             print("Plate not classified!")
-    else:
-        print("Plate not classified!")
 
 
 if __name__ == '__main__':

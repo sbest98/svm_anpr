@@ -35,10 +35,16 @@ To run the ANPR tool, use the following command:
 ```sh
 python3 anpr.py -d 0 -i test_image.png
 ```
-Command options include:
+
+Command options (not required) include:
 ```
 -d 0 (debug disabled) or 1 (debug enabled)
 -i (test image in ./images/test_images/)
+```
+
+or without arguments (defaults to test_image.png without debugging):
+```
+python3 anpr.py
 ```
 
 ### Training or Validating SVM Model
