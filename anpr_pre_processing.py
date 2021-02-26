@@ -71,25 +71,44 @@ class LocateAndDivideNumberPlate:
 
     def locate_number_plate_v2(self, image, num_contours=5):
         cv2.destroyAllWindows()
+        # Noise reduction using Bilaterial filter
+        #   - Smoothing operation to remove noise
+        #   - Less blurring compared to median filter
         bil = cv2.bilateralFilter(image, 15, 50, 75);
         self.show_image("Bilateral Filter", bil)
 
+        # CLAHE Histogram Equalisation
+        #   - Improve constrast between edges
+        #   - Highlights specific regions
         clahe_filter = cv2.createCLAHE(clipLimit=1.0, tileGridSize=(8,8))
         clahe = clahe_filter.apply(bil)
         self.show_image("Adaptive HE", clahe)
 
+        # Morphological opening operation
+        #   - Circular kernel
+        #   - Erosion followed by dilation
+        #   - Aims to highlight the numberplate contour by abstracting other
+        #     details away
         disc_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9,9))
-        square_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,4))
         opening = cv2.morphologyEx(clahe, cv2.MORPH_OPEN, disc_kernel)
         self.show_image("Circular Opening", opening)
 
+        # Difference between CLAHE and Opening
+        #   - This should increase the constrast between the numberplate
+        #     and its surroundings
+        #   - Leaves white plate block present in foreground
         ahe_minus_open = clahe - opening
         self.show_image("AHE - Opening", ahe_minus_open)
 
+        # Binarisation
+        #   - Using Otsu's method convert to binary (0 or 1) image
+        #   - Uses average pixel value to determine the threshold
         binarise = cv2.threshold(ahe_minus_open, 0, 255,
             cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
         self.show_image("Binarise", binarise)
 
+        # Edge Detection
+        #   - Horizontal and vertical Sobel edge detect
         sobel_dy = cv2.Sobel(binarise, ddepth=cv2.CV_32F,
             dx=0, dy=1, ksize=-1)
         sobel_dx = cv2.Sobel(binarise, ddepth=cv2.CV_32F,
@@ -99,9 +118,14 @@ class LocateAndDivideNumberPlate:
         sobel = cv2.addWeighted(abs_sobel_x, 0.5, abs_sobel_y, 0.5, 0)
         self.show_image("Sobel", sobel)
 
+        # Dilate
+        #   - Connect edges of numberplate together if disconnected when
+        #     edge detected
         dilate = cv2.dilate(sobel, None, iterations=1)
         self.show_image("Dilate", dilate)
 
+        # Flood
+        #   - Fill in edges to produce a set of contours
         dilate_copy = dilate.copy()
         h, w = dilate_copy.shape[:2]
         flood_mask = np.zeros((h+2, w+2), np.uint8)
@@ -110,6 +134,8 @@ class LocateAndDivideNumberPlate:
         floodfill_im = dilate | floodfill_bitwise
         self.show_image("Fill plate", floodfill_im)
 
+        # Erode
+        #   - Erode noise away before contour detection
         erode = cv2.erode(floodfill_im, None, iterations=1)
         self.show_image("Erode", erode, True)
 

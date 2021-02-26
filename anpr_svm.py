@@ -127,10 +127,6 @@ def k_fold_main(args):
         test_accuracy *= 100
         mean_test_accuracy += test_accuracy
         print("Testing Accuracy: " + str(test_accuracy) + "%")
-        # print("Character Mispredictions:")
-        # for label in false_predictions:
-        #     if false_predictions[label] != 0:
-        #         print(label + ": " + str(false_predictions[label]), str(false_predictions_list[label]))
     print("\n\n--------------K fold results---------------")
     print("Average training accuracy: " + str(mean_training_accuracy/(k*iter)) + "%")
     print("Average test accuracy: " + str(mean_test_accuracy/(k*iter)) + "%")
