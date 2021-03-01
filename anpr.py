@@ -10,8 +10,12 @@ from joblib import load
 from natsort import natsorted, ns
 from sklearn import svm, metrics
 import matplotlib.pyplot as plt
-# Import pre-processing class
+# Import pre-processing and databasing functions
 from anpr_pre_processing import extract_svm_characters
+from database.anpr_db import update_database
+
+# Default configuration values
+DEFAULT_DB = './database/anpr_db.sqlite3'
 
 def getANPR(image_list, position_list, d):
     sorted_image_list = []
@@ -101,6 +105,7 @@ def getANPR(image_list, position_list, d):
     plate_string = ''.join([str(elem) for elem in sorted_plate_predictions])
     if len(plate_string) == 7:
         print("Number plate:\n" + plate_string)
+        update_database(DEFAULT_DB, plate_string, 0)
         return 2
     elif len(plate_string) > 7:
         if d: print("Debug plate value: ", plate_string)
