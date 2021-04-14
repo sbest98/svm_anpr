@@ -119,21 +119,27 @@ def main():
     ap.add_argument("-i", required=False)
     ap.add_argument("-d", required=False)
     arg = vars(ap.parse_args())
-    for border_removal in range(0,2):
-        if border_removal: print("Noise detected. Attempting border removal...")
+    # Loop over ANPR test operations including:
+    # 0 - Normal operation
+    # 1 - Border removal
+    # 2 - Ignore morph closing operation in pre-proc
+    for border_removal in range(0,3):
+        if border_removal == 1: print("Noise detected. Attempting border removal...")
+        elif border_removal == 2: print("Attempting gradient threshold contour...")
         plate_found, image_list, position_list = extract_svm_characters(arg["i"]
                                                                         if (arg.get("i") != None)
                                                                         else 'test_image.png',
                                                                         int(arg["d"])
                                                                         if (arg.get("d") != None)
                                                                         else False,
-                                                                        border_removal)
+                                                                        border_removal==1,
+                                                                        border_removal==2)
 
         if plate_found:
             anpr_status = getANPR(image_list, position_list, int(arg["d"])
                                                              if arg.get("d") is not None
                                                              else False)
-            if (anpr_status == 0) or (anpr_status == 1 and border_removal):
+            if (anpr_status == 0) or (anpr_status == 1 and (border_removal > 0)):
                 print("Plate not classified!")
             elif anpr_status == 2:
                 break

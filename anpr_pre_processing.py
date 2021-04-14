@@ -32,13 +32,13 @@ class LocateAndDivideNumberPlate:
             if waitKey:
                 cv2.waitKey(0)
 
-    def find_and_divide(self, image_path, pp_mode, border_test = False):
+    def find_and_divide(self, image_path, pp_mode, border_test = False, grad_test = False):
         image = cv2.imread(self.path_to_images + image_path)
         if image is not None:
             image = imutils.resize(image, width=600)
             image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-            contour_list_v1 = self.locate_number_plate(image_gray, 12)
+            contour_list_v1 = self.locate_number_plate(image_gray, 12, grad_test)
             contour_list_v2 = self.locate_number_plate_v2(image_gray, 12)
 
             if not border_test:
@@ -57,7 +57,7 @@ class LocateAndDivideNumberPlate:
                 # Fall back test -  clearing border pixels on contour
                 characters_segmented, character_list, character_positions = self.locate_number_plate_characters(contour_list_v1
                                                                                             + contour_list_v2,
-                                                                                            True,
+                                                                                            border_test,
                                                                                             pp_mode)
 
             if not characters_segmented:
@@ -148,7 +148,7 @@ class LocateAndDivideNumberPlate:
         for c in contours:
             (x, y, w, h) = cv2.boundingRect(c)
             ratio = float(w/h)
-            if ratio >= 2.9 and ratio <= 6.2:
+            if ratio >= 2.4 and ratio <= 6.2:
                 contour_image = image[y:y + h, x:x + w]
                 contour_list.append(contour_image)
                 self.show_image("Plate Contour", contour_image)
@@ -156,7 +156,7 @@ class LocateAndDivideNumberPlate:
 
         return contour_list
 
-    def locate_number_plate(self, image, num_contours=5):
+    def locate_number_plate(self, image, num_contours=5, grad_test=False):
         cv2.destroyAllWindows()
         # Blackhat morphological operation
         #   - reveal dark regions (i.e., text) on light backgrounds
@@ -201,13 +201,15 @@ class LocateAndDivideNumberPlate:
 
         # take the bitwise AND between the threshold result and the
         # light regions of the image
-        thresh = cv2.bitwise_and(thresh, thresh, mask=light)
-        thresh = cv2.dilate(thresh, None, iterations=2)
-        thresh = cv2.erode(thresh, None, iterations=1)
-        self.show_image("Final", thresh, True)
+        final = cv2.bitwise_and(thresh, thresh, mask=light)
+        final = cv2.dilate(final, None, iterations=2)
+        final = cv2.erode(final, None, iterations=1)
+        self.show_image("Final", final, True)
 
         # Find the contours in the image
-        contours = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+        #   - Use 2nd to last pre-proc image (graient erode/dilate) as fall back
+        #     if light region closing operation fails to find plate
+        contours = cv2.findContours(thresh.copy() if grad_test else final.copy(), cv2.RETR_EXTERNAL,
                                     cv2.CHAIN_APPROX_SIMPLE)
         contours = imutils.grab_contours(contours)
         contours = sorted(contours, key=cv2.contourArea, reverse=True)[:num_contours]
@@ -215,7 +217,7 @@ class LocateAndDivideNumberPlate:
         for c in contours:
             (x, y, w, h) = cv2.boundingRect(c)
             ratio = float(w/h)
-            if ratio >= 2.9 and ratio <= 6.2:
+            if ratio >= 2.4 and ratio <= 6.2:
                 contour_image = image[y:y + h, x:x + w]
                 contour_list.append(contour_image)
                 self.show_image("Plate Contour", contour_image)
@@ -258,7 +260,7 @@ class LocateAndDivideNumberPlate:
                 area = w*h
                 ratio = float(h/w)
                 contour_image = image[y:y + h, x:x + w]
-                if ((ratio >= 1.2 and ratio <= 2.3) or (ratio >= 3.7 and ratio <= 6.0)) and (area > 30):
+                if ((ratio >= 1.2 and ratio <= 2.3) or (ratio >= 3.7 and ratio <= 6.4)) and (area > 30):
                     self.char_count += 1 # Character found
                     self.global_char_count += 1 # Character found
                     contour_image = cv2.threshold(contour_image, 0, 255,
@@ -266,6 +268,7 @@ class LocateAndDivideNumberPlate:
                     char_images.append(cv2.resize(contour_image, (15,20)))
                     char_positions.append([x, y, w, h])
                     self.show_image("Plate Character", contour_image, True)
+
 
             if self.char_count < 7:
                 if pp_mode == GENERATE_DATASET:
@@ -299,9 +302,10 @@ def extract_character_data_set():
         print("\nLocating and dividing number plate in: " + image)
         pre_proc.find_and_divide(arg["i"] + image, GENERATE_DATASET)
 
-def extract_svm_characters(image_name, debug, border_test=False):
+def extract_svm_characters(image_name, debug, border_test=False, grad_test=False):
     pre_proc = LocateAndDivideNumberPlate(path_to_images = './images/test_images/', debug=debug)
     plate_found, image_list, position_list = pre_proc.find_and_divide(image_name,
                                                                       FIND_SVM_CHARACTERS,
-                                                                      border_test)
+                                                                      border_test,
+                                                                      grad_test)
     return plate_found, image_list, position_list
